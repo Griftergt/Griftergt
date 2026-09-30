@@ -1,4 +1,3 @@
-<img width="965" height="699" alt="kernel panic" src="https://github.com/user-attachments/assets/9c009001-867a-45c3-89c3-a343e4a13f9e" />
 # Домашнее задание. Занятие 1. Обновление ядра системы
 
 ## Название задания
@@ -57,7 +56,7 @@ Setting up linux-image-unsigned-7.1.0-070100-generic (7.1.0-070100.202606141628)
 I: /boot/vmlinuz is now a symlink to vmlinuz-7.1.0-070100-generic
 I: /boot/initrd.img is now a symlink to initrd.img-7.1.0-070100-generic
 ```
-
+<img width="965" height="699" alt="kernel panic" src="https://github.com/user-attachments/assets/9c009001-867a-45c3-89c3-a343e4a13f9e" />
 ### 5. Устранение неполадки: отсутствие initramfs
 
 После первой перезагрузки система упала в Kernel Panic с ошибкой:
