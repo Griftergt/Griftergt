@@ -1,3 +1,4 @@
+<img width="965" height="699" alt="kernel panic" src="https://github.com/user-attachments/assets/9c009001-867a-45c3-89c3-a343e4a13f9e" />
 # Домашнее задание. Занятие 1. Обновление ядра системы
 
 ## Название задания
