@@ -199,7 +199,7 @@ lrwxrwxrwx  1 root root       24 Sep 30 07:59 vmlinuz.old -> vmlinuz-7.0.0-34-ge
   115  history
   
   ### Начало и конец вывода терминала:
-
+```bash
 root@ubuntu-server-1:/usr/src/linux-7.2# ls -l
 total 1216
 -rw-rw-r--   1 root root    496 Aug 16 21:32 COPYING
@@ -279,6 +279,6 @@ Provide system-wide ring of trusted keys (SYSTEM_TRUSTED_KEYRING) [Y/?] y
 
 root@ubuntu-server-1:/home/padmin# uname -r
 7.2.0
-
+```
 Если требуется, то моу прислать огромный текстовый файл выводом всего терминала.
 
