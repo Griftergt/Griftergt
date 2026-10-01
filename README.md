@@ -101,7 +101,7 @@ lrwxrwxrwx  1 root root       24 Sep 30 07:59 vmlinuz.old -> vmlinuz-7.0.0-34-ge
 ### Задание со звёздочкой выполнил
 
 Башхистори ниже.
-
+```bash
  21  apt update
    22  apt install -y build-essential libncurses-dev bison flex libssl-dev libelf-dev bc dwarves zstd rsync git wget patch
    23  cd /usr/src
@@ -197,7 +197,7 @@ lrwxrwxrwx  1 root root       24 Sep 30 07:59 vmlinuz.old -> vmlinuz-7.0.0-34-ge
   113  sudo reboot
   114  uname -r
   115  history
-  
+  ```
   ### Начало и конец вывода терминала:
 ```bash
 root@ubuntu-server-1:/usr/src/linux-7.2# ls -l
