@@ -1,284 +1,349 @@
-# Домашнее задание. Занятие 1. Обновление ядра системы
+# Домашнее задание. Занятие 2. Работа с mdadm
 
-## Название задания
-Обновление ядра Linux в Ubuntu вручную из mainline-репозитория.
+## Цель задания
+Научиться использовать утилиту для управления программными RAID-массивами в Linux.
 
 ## Текст задания
-1. Запустить ВМ с Ubuntu.
-2. Обновить ядро ОС на болееновую версию из mainline-репозитория.
-3. Оформить отчет в README-файле в GitHub-репозитории.
+1. Добавить в виртуальную машину несколько дисков.
+2. Собрать RAID-0/1/5/10 на выбор.
+3. Сломать и почините RAID.
+4. Создать GPT таблицу, пять разделов и смонтировать их в системе
 
-**Дополнительное задание:** собрать ядро самостоятельно из исходных кодов.
 
 ## Выполнение
 
-### 1. Исходное состояние системы
+### 1. Добавление дисков.
 
-Была установлена Ubuntu 26.04.1 LTS. Проверена текущая версия ядра:
+Добавлено 6 дисков по гигабайту.
+Пришлось поиграться с номерами устройств в гипервизоре, чтобы первый диск отображался как sda.
+
 
 ```bash
-$ uname -r
-7.0.0-34-generic
-```
-Проверено содержимое /boot:
-```bash
-$ ls -al /boot
-total 130500
--rw-------  1 root root 11018537 Sep  2 09:35 System.map-7.0.0-34-generic
--rw-r--r--  1 root root   308473 Sep  2 09:35 config-7.0.0-34-generic
-lrwxrwxrwx  1 root root       27 Sep 30 07:13 initrd.img -> initrd.img-7.0.0-34-generic
-lrwxrwxrwx  1 root root       24 Sep 30 07:13 vmlinuz -> vmlinuz-7.0.0-34-generic
-...
-```
-### 2. Выбор версии ядра
-На странице https://kernel.ubuntu.com/mainline/ была выбрана версия — v7.1 (сборка 7.1.0-070100.202606141628), которая новее установленной 7.0.0-34.
+sda                         8:0    0   40G  0 disk
+├─sda1                      8:1    0    1M  0 part
+├─sda2                      8:2    0    2G  0 part /boot
+└─sda3                      8:3    0   38G  0 part
+  └─ubuntu--vg-ubuntu--lv 252:0    0   38G  0 lvm  /
+sdb                         8:16   0    1G  0 disk
+sdc                         8:32   0    1G  0 disk
+sdd                         8:48   0    1G  0 disk
+sde                         8:64   0    1G  0 disk
+sdf                         8:80   0    1G  0 disk
+sdg                         8:96   0    1G  0 disk
 
-### 3. Скачивание пакетов
-Создана рабочая директория и скачаны четыре .deb-пакета для архитектуры amd64:
-```bash
-$ mkdir ~/kernel-7.1 && cd ~/kernel-7.1
-
-$ wget https://kernel.ubuntu.com/mainline/v7.1/amd64/linux-headers-7.1.0-070100-generic_7.1.0-070100.202606141628_amd64.deb
-$ wget https://kernel.ubuntu.com/mainline/v7.1/amd64/linux-headers-7.1.0-070100_7.1.0-070100.202606141628_all.deb
-$ wget https://kernel.ubuntu.com/mainline/v7.1/amd64/linux-image-unsigned-7.1.0-070100-generic_7.1.0-070100.202606141628_amd64.deb
-$ wget https://kernel.ubuntu.com/mainline/v7.1/amd64/linux-modules-7.1.0-070100-generic_7.1.0-070100.202606141628_amd64.deb
 ```
-### 4. Установка пакетов
-```bash
-$ sudo dpkg -i *.deb
-```
-Вывод (сокращённо):
-```
-Setting up linux-headers-7.1.0-070100 (7.1.0-070100.202606141628) ...
-Setting up linux-modules-7.1.0-070100-generic (7.1.0-070100.202606141628) ...
-Setting up linux-headers-7.1.0-070100-generic (7.1.0-070100.202606141628) ...
-Setting up linux-image-unsigned-7.1.0-070100-generic (7.1.0-070100.202606141628) ...
-I: /boot/vmlinuz is now a symlink to vmlinuz-7.1.0-070100-generic
-I: /boot/initrd.img is now a symlink to initrd.img-7.1.0-070100-generic
-```
-<img width="965" height="699" alt="kernel panic" src="https://github.com/user-attachments/assets/9c009001-867a-45c3-89c3-a343e4a13f9e" />
-### 5. Устранение неполадки: отсутствие initramfs
 
-После первой перезагрузки система упала в Kernel Panic с ошибкой:
-VFS: Unable to mount root fs on unknown-block(0,0)
+### 2. Сборка RAID6
 
-Причина: при установке mainline-ядра не был автоматически сгенерирован initrd.img для нового ядра. В /boot отсутствовал файл initrd.img-7.1.0-070100-generic, при этом симлинк initrd.img указывал на несуществующий файл.
-
-Решение: загрузился в старое рабочее ядро 7.0.0-34-generic через меню GRUB (Advanced options for Ubuntu), затем вручную сгенерировал initramfs и обновил конфигурацию загрузчика:
+С первого раза не получилось собрать RAID из-за названия блочного устройства md
 
 ```bash
-$ sudo update-initramfs -c -k 7.1.0-070100-generic
-update-initramfs: Generating /boot/initrd.img-7.1.0-070100-generic
+root@ubuntu-server-1:/home/padmin# mdadm --create --verbose /dev/md_r6 -l 6 -n 6 /dev/sd{b,c,d,e,f,g}
+To optimize recovery speed, it is recommended to enable write-intent bitmap, do you want to enable it now? [y/N]? y
+mdadm: layout defaults to left-symmetric
+mdadm: layout defaults to left-symmetric
+mdadm: chunk size defaults to 512K
+mdadm: size set to 1046528K
+mdadm: /dev/md_r6 is an invalid name for an md device.  Try /dev/md/md_r6
+root@ubuntu-server-1:/home/padmin# lsblk
+NAME                      MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+fd0                         2:0    1    4K  0 disk
+loop0                       7:0    0 66.8M  1 loop /snap/core24/1643
+loop1                       7:1    0  1.5M  1 loop /snap/hwctl/123
+loop2                       7:2    0 50.1M  1 loop /snap/snapd/27710
+loop3                       7:3    0  1.5M  1 loop /snap/hwctl/131
+sda                         8:0    0   40G  0 disk
+├─sda1                      8:1    0    1M  0 part
+├─sda2                      8:2    0    2G  0 part /boot
+└─sda3                      8:3    0   38G  0 part
+  └─ubuntu--vg-ubuntu--lv 252:0    0   38G  0 lvm  /
+sdb                         8:16   0    1G  0 disk
+sdc                         8:32   0    1G  0 disk
+sdd                         8:48   0    1G  0 disk
+sde                         8:64   0    1G  0 disk
+sdf                         8:80   0    1G  0 disk
+sdg                         8:96   0    1G  0 disk
 
-$ sudo update-grub
-Found linux image: /boot/vmlinuz-7.1.0-070100-generic
-Found initrd image: /boot/initrd.img-7.1.0-070100-generic
-Found linux image: /boot/vmlinuz-7.0.0-34-generic
-Found initrd image: /boot/initrd.img-7.0.0-34-generic
-...
-done
-
-$ sudo reboot
 ```
-### 6. Проверка результата
+Собрал RAID из 5 дисков. 
 
-После перезагрузки система успешно загрузилась в новое ядро:
-
-Содержимое /boot после успешной установки:
 ```bash
-$ ls -al /boot
-total 188844
--rw-------  1 root root 11899326 Jun 14 16:28 System.map-7.1.0-070100-generic
--rw-r--r--  1 root root   307299 Jun 14 16:28 config-7.1.0-070100-generic
-lrwxrwxrwx  1 root root       31 Sep 30 07:59 initrd.img -> initrd.img-7.1.0-070100-generic
--rw-------  1 root root 34750005 Sep 30 08:28 initrd.img-7.1.0-070100-generic
-lrwxrwxrwx  1 root root       28 Sep 30 07:59 vmlinuz -> vmlinuz-7.1.0-070100-generic
--rw-------  1 root root 17457664 Jun 14 16:28 vmlinuz-7.1.0-070100-generic
-lrwxrwxrwx  1 root root       27 Sep 30 07:59 initrd.img.old -> initrd.img-7.0.0-34-generic
-lrwxrwxrwx  1 root root       24 Sep 30 07:59 vmlinuz.old -> vmlinuz-7.0.0-34-generic
-...
+root@ubuntu-server-1:/home/padmin# mdadm --create --verbose /dev/md6 -l 6 -n 5 /dev/sd{b,c,d,e,f}
+To optimize recovery speed, it is recommended to enable write-intent bitmap, do you want to enable it now? [y/N]? y
+mdadm: layout defaults to left-symmetric
+mdadm: layout defaults to left-symmetric
+mdadm: chunk size defaults to 512K
+mdadm: size set to 1046528K
+mdadm: Defaulting to version 1.2 metadata
+mdadm: array /dev/md6 started.
+root@ubuntu-server-1:/home/padmin# lsblk
+NAME                      MAJ:MIN RM  SIZE RO TYPE  MOUNTPOINTS
+fd0                         2:0    1    4K  0 disk
+loop0                       7:0    0 66.8M  1 loop  /snap/core24/1643
+loop1                       7:1    0  1.5M  1 loop  /snap/hwctl/123
+loop2                       7:2    0 50.1M  1 loop  /snap/snapd/27710
+loop3                       7:3    0  1.5M  1 loop  /snap/hwctl/131
+sda                         8:0    0   40G  0 disk
+├─sda1                      8:1    0    1M  0 part
+├─sda2                      8:2    0    2G  0 part  /boot
+└─sda3                      8:3    0   38G  0 part
+  └─ubuntu--vg-ubuntu--lv 252:0    0   38G  0 lvm   /
+sdb                         8:16   0    1G  0 disk
+└─md6                       9:6    0    3G  0 raid6
+sdc                         8:32   0    1G  0 disk
+└─md6                       9:6    0    3G  0 raid6
+sdd                         8:48   0    1G  0 disk
+└─md6                       9:6    0    3G  0 raid6
+sde                         8:64   0    1G  0 disk
+└─md6                       9:6    0    3G  0 raid6
+sdf                         8:80   0    1G  0 disk
+└─md6                       9:6    0    3G  0 raid6
+sdg                         8:96   0    1G  0 disk
+
 ```
-### Задание со звёздочкой выполнил
 
-Башхистори ниже.
+### 3. Поломка и починка RAID
+Сломал
+
 ```bash
- 21  apt update
-   22  apt install -y build-essential libncurses-dev bison flex libssl-dev libelf-dev bc dwarves zstd rsync git wget patch
-   23  cd /usr/src
-   24  -l -la
-   25  -l -l
-   26  -ls -l
-   27  ls -l
-   28  sudo wget https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.tar.xz
-   29  ls -l
-   30  sudo tar xf linux-7.2.tar.xz
-   31  ls -l
-   32  sudo chown -R $(id -u):$(id -g) linux-7.2
-   33  top
-   34  shutdown - h now
-   35  shutdown -h now
-   36  top
-   37  cd /usr/src/linux-7.2
-   38  cp /boot/config-$(uname -r) .config
-   39  ls -l
-   40  make olddefconfig
-   41  scripts/config --disable SYSTEM_TRUSTED_KEYS
-   42  scripts/config --disable SYSTEM_REVOCATION_KEYS
-   43  make -j$(nproc)
-   44  apt update
-   45  apt install -y libdw-dev
-   46  make -j$(nproc)
-   47  ls -l
-   48  ls -lф
-   49  ls -la
-   50  nano .config
-   51  vi .config
-   52  vi /.config
-   53  ls -la .config
-   54  apt install nano
-   55  nano .config
-   56  grep -n "SYSTEM_TRUSTED_KEYS\|SYSTEM_REVOCATION_KEYS" .config
-   57  sed -i 's/^CONFIG_SYSTEM_TRUSTED_KEYS=.*/CONFIG_SYSTEM_TRUSTED_KEYS=""/' .config
-   58  sed -i 's/^CONFIG_SYSTEM_REVOCATION_KEYS=.*/CONFIG_SYSTEM_REVOCATION_KEYS=""/' .config
-   59  grep -n "SYSTEM_TRUSTED_KEYS\|SYSTEM_REVOCATION_KEYS" .config
-   60  make -j$(nproc)
-   61  df -h
-   62  lsblk
-   63  vgs
-   64  lvextend -l +100%FREE /dev/ubuntu-vg/ubuntu-lv
-   65  resize2fs /dev/ubuntu-vg/ubuntu-lv
-   66  df -h /
-   67  lvs
-   68  blockdev --getsize64 /dev/ubuntu-vg/ubuntu-lv
-   69  blockdev --getsize64 /dev/mapper/ubuntu--vg-ubuntu--lv
-   70  apt clean
-   71  apt autoremove -y
-   72  df -h /
-   73  make clean
-   74  df -h /
-   75  lvextend -l +100%FREE /dev/ubuntu-vg/ubuntu-lv
-   76  resize2fs /dev/ubuntu-vg/ubuntu-lv
-   77  df -h /
-   78  make -j$(nproc) 2>&1 | tee build.log
-   79  df -h /
-   80  ls -l
-   81  make clean
-   82  df -h
-   83  lablk
-   84  lsblk
-   85  parted /dev/sdb mklabel gpt
-   86  apt install parted
-   87  parted /dev/sdb mklabel gpt
-   88  parted /dev/sdb mkpart primary ext4 0% 100%
-   89  mkfs.ext4 /dev/sdb1
-   90  lsblk
-   91  mkdir -p /mnt/build
-   92  mount /dev/sdb1 /mnt/build
-   93  df -h /mnt/build
-   94  mv /usr/src/linux-7.2 /mnt/build/
-   95  ln -s /mnt/build/linux-7.2 /usr/src/linux-7.2
-   96  cd /usr/src/linux-7.2
-   97  pwd
-   98  make -j$(nproc)
-   99  ls -l
-  100  df -H
-  101  cd /usr/src/linux-7.2
-  102  sudo make modules_install
-  103  sudo make install
-  104  uname -r
-  105  ls -al /boot
-  106  blkid
-  107  cat /etc/fstab
-  108  nano /etc/fstab
-  109  tail -n 3 /etc/fstab
-  110  mount -a
-  111  df -h /mnt/build
-  112  ls /mnt/build
-  113  sudo reboot
-  114  uname -r
-  115  history
-  ```
-  ### Начало и конец вывода терминала:
-```bash
-root@ubuntu-server-1:/usr/src/linux-7.2# ls -l
-total 1216
--rw-rw-r--   1 root root    496 Aug 16 21:32 COPYING
--rw-rw-r--   1 root root 108983 Aug 16 21:32 CREDITS
-drwxrwxr-x  77 root root   4096 Aug 16 21:32 Documentation
--rw-rw-r--   1 root root   3129 Aug 16 21:32 Kbuild
--rw-rw-r--   1 root root    582 Aug 16 21:32 Kconfig
-drwxrwxr-x   6 root root   4096 Aug 16 21:32 LICENSES
--rw-rw-r--   1 root root 916464 Aug 16 21:32 MAINTAINERS
--rw-rw-r--   1 root root  79208 Aug 16 21:32 Makefile
--rw-rw-r--   1 root root   6043 Aug 16 21:32 README
-drwxrwxr-x  23 root root   4096 Aug 16 21:32 arch
-drwxrwxr-x   3 root root   4096 Aug 16 21:32 block
-drwxrwxr-x   2 root root   4096 Aug 16 21:32 certs
-drwxrwxr-x   5 root root   4096 Aug 16 21:32 crypto
-drwxrwxr-x 146 root root   4096 Aug 16 21:32 drivers
-drwxrwxr-x  80 root root   4096 Aug 16 21:32 fs
-drwxrwxr-x  33 root root   4096 Aug 16 21:32 include
-drwxrwxr-x   2 root root   4096 Aug 16 21:32 init
-drwxrwxr-x   2 root root   4096 Aug 16 21:32 io_uring
-drwxrwxr-x   2 root root   4096 Aug 16 21:32 ipc
-drwxrwxr-x  24 root root   4096 Aug 16 21:32 kernel
-drwxrwxr-x  22 root root  12288 Aug 16 21:32 lib
-drwxrwxr-x   7 root root   4096 Aug 16 21:32 mm
-drwxrwxr-x  68 root root   4096 Aug 16 21:32 net
-drwxrwxr-x  13 root root   4096 Aug 16 21:32 rust
-drwxrwxr-x  47 root root   4096 Aug 16 21:32 samples
-drwxrwxr-x  24 root root  12288 Aug 16 21:32 scripts
-drwxrwxr-x  15 root root   4096 Aug 16 21:32 security
-drwxrwxr-x  27 root root   4096 Aug 16 21:32 sound
-drwxrwxr-x  48 root root   4096 Aug 16 21:32 tools
-drwxrwxr-x   4 root root   4096 Aug 16 21:32 usr
-drwxrwxr-x   4 root root   4096 Aug 16 21:32 virt
-root@ubuntu-server-1:/usr/src/linux-7.2# make olddefconfig
-  HOSTCC  scripts/basic/fixdep
-  HOSTCC  scripts/kconfig/conf.o
-  HOSTCC  scripts/kconfig/confdata.o
-  HOSTCC  scripts/kconfig/expr.o
-  LEX     scripts/kconfig/lexer.lex.c
-  YACC    scripts/kconfig/parser.tab.[ch]
-  HOSTCC  scripts/kconfig/lexer.lex.o
-  HOSTCC  scripts/kconfig/menu.o
-  HOSTCC  scripts/kconfig/parser.tab.o
-  HOSTCC  scripts/kconfig/preprocess.o
-  HOSTCC  scripts/kconfig/symbol.o
-  HOSTCC  scripts/kconfig/util.o
-  HOSTLD  scripts/kconfig/conf
-.config:1539:warning: symbol value 'm' invalid for NETFILTER_NETLINK
-.config:8082:warning: symbol value 'm' invalid for SND_SOC_ACPI_AMD_SDCA_QUIRKS
-#
-# configuration written to .config
-#
-root@ubuntu-server-1:/usr/src/linux-7.2# ^C
-root@ubuntu-server-1:/usr/src/linux-7.2# scripts/config --disable SYSTEM_TRUSTED_KEYS
-root@ubuntu-server-1:/usr/src/linux-7.2# scripts/config --disable SYSTEM_REVOCATION_KEYS
-root@ubuntu-server-1:/usr/src/linux-7.2# make -j$(nproc)
-  SYNC    include/config/auto.conf
-*
-* Restart config...
-*
-*
-* Certificates for signature checking
-*
-File name or PKCS#11 URI of module signing key (MODULE_SIG_KEY) [certs/signing_key.pem] certs/signing_key.pem
-Type of module signing key to be generated
-> 1. RSA (MODULE_SIG_KEY_TYPE_RSA)
-  2. ECDSA (MODULE_SIG_KEY_TYPE_ECDSA)
-  3. ML-DSA-44 (MODULE_SIG_KEY_TYPE_MLDSA_44)
-  4. ML-DSA-65 (MODULE_SIG_KEY_TYPE_MLDSA_65)
-  5. ML-DSA-87 (MODULE_SIG_KEY_TYPE_MLDSA_87)
-choice[1-5?]: 1
-Provide system-wide ring of trusted keys (SYSTEM_TRUSTED_KEYRING) [Y/?] y
+root@ubuntu-server-1:/home/padmin# mdadm /dev/md6 --fail /dev/sde
+root@ubuntu-server-1:/home/padmin# cat /proc/mdstat
+Personalities : [raid4] [raid5] [raid6]
+md6 : active raid6 sdf[4] sde[3](F) sdd[2] sdc[1] sdb[0]
+      3139584 blocks super 1.2 level 6, 512k chunk, algorithm 2 [5/4] [UUU_U]
+      bitmap: 0/1 pages [0KB], 65536KB chunk
 
+unused devices: <none>
+root@ubuntu-server-1:/home/padmin# mdadm -D /dev/md6
+/dev/md6:
+           Version : 1.2
+     Creation Time : Sat Oct 10 08:50:38 2026
+        Raid Level : raid6
+        Array Size : 3139584 (2.99 GiB 3.21 GB)
+     Used Dev Size : 1046528 (1022.00 MiB 1071.64 MB)
+      Raid Devices : 5
+     Total Devices : 5
+       Persistence : Superblock is persistent
 
-....
+     Intent Bitmap : Internal
 
+       Update Time : Sat Oct 10 08:52:12 2026
+             State : clean, degraded
+    Active Devices : 4
+   Working Devices : 4
+    Failed Devices : 1
+     Spare Devices : 0
 
-root@ubuntu-server-1:/home/padmin# uname -r
-7.2.0
+            Layout : left-symmetric
+        Chunk Size : 512K
+
+Consistency Policy : bitmap
+
+              Name : ubuntu-server-1:6  (local to host ubuntu-server-1)
+              UUID : bf677b13:e8f0e3cb:b06514cd:d6647871
+            Events : 20
+
+    Number   Major   Minor   RaidDevice State
+       0       8       16        0      active sync   /dev/sdb
+       1       8       32        1      active sync   /dev/sdc
+       2       8       48        2      active sync   /dev/sdd
+       -       0        0        3      removed
+       4       8       80        4      active sync   /dev/sdf
+
+       3       8       64        -      faulty   /dev/sde
+
 ```
-Если требуется, то моу прислать огромный текстовый файл выводом всего терминала.
 
+Починил, подсунув другой диск.
+
+```bash
+root@ubuntu-server-1:/home/padmin# mdadm /dev/md6 --add /dev/sdg
+mdadm: added /dev/sdg
+root@ubuntu-server-1:/home/padmin# cat /proc/mdstat
+Personalities : [raid4] [raid5] [raid6]
+md6 : active raid6 sdg[5] sdf[4] sdd[2] sdc[1] sdb[0]
+      3139584 blocks super 1.2 level 6, 512k chunk, algorithm 2 [5/5] [UUUUU]
+      bitmap: 0/1 pages [0KB], 65536KB chunk
+
+unused devices: <none>
+root@ubuntu-server-1:/home/padmin# mdadm -D /dev/md6
+/dev/md6:
+           Version : 1.2
+     Creation Time : Sat Oct 10 08:50:38 2026
+        Raid Level : raid6
+        Array Size : 3139584 (2.99 GiB 3.21 GB)
+     Used Dev Size : 1046528 (1022.00 MiB 1071.64 MB)
+      Raid Devices : 5
+     Total Devices : 5
+       Persistence : Superblock is persistent
+
+     Intent Bitmap : Internal
+
+       Update Time : Sat Oct 10 08:53:55 2026
+             State : clean
+    Active Devices : 5
+   Working Devices : 5
+    Failed Devices : 0
+     Spare Devices : 0
+
+            Layout : left-symmetric
+        Chunk Size : 512K
+
+Consistency Policy : bitmap
+
+              Name : ubuntu-server-1:6  (local to host ubuntu-server-1)
+              UUID : bf677b13:e8f0e3cb:b06514cd:d6647871
+            Events : 41
+
+    Number   Major   Minor   RaidDevice State
+       0       8       16        0      active sync   /dev/sdb
+       1       8       32        1      active sync   /dev/sdc
+       2       8       48        2      active sync   /dev/sdd
+       5       8       96        3      active sync   /dev/sdg
+       4       8       80        4      active sync   /dev/sdf
+
+```
+
+### 4. Создание GPT таблицы, монтирование разделов в системе
+```bash
+root@ubuntu-server-1:/home/padmin# parted -s /dev/md6 mklabel gpt
+bash: parted: command not found
+root@ubuntu-server-1:/home/padmin# apt install parted
+Installing:
+  parted
+ ...
+
+No user sessions are running outdated binaries.
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
+root@ubuntu-server-1:/home/padmin# parted -s /dev/md6 mklabel gpt
+root@ubuntu-server-1:/home/padmin# parted /dev/md6 mkpart primary ext4 0% 20%
+Information: You may need to update /etc/fstab.
+
+root@ubuntu-server-1:/home/padmin# parted /dev/md6 mkpart primary ext4 20% 40%
+Information: You may need to update /etc/fstab.
+
+root@ubuntu-server-1:/home/padmin# parted /dev/md6 mkpart primary ext4 40% 60%
+Information: You may need to update /etc/fstab.
+
+root@ubuntu-server-1:/home/padmin# parted /dev/md6 mkpart primary ext4 60% 80%
+Information: You may need to update /etc/fstab.
+
+root@ubuntu-server-1:/home/padmin# parted /dev/md6 mkpart primary ext4 80% 100%
+Information: You may need to update /etc/fstab.
+
+root@ubuntu-server-1:/home/padmin# for i in $(seq 1 5); do sudo mkfs.ext4 /dev/md6p$i; done
+mke2fs 1.47.2 (1-Jan-2025)
+Creating filesystem with 156672 4k blocks and 39200 inodes
+Filesystem UUID: d3cb0b63-d0a4-45e6-90db-65b11b687b4b
+Superblock backups stored on blocks:
+        32768, 98304
+
+Allocating group tables: done
+Writing inode tables: done
+Creating journal (4096 blocks): done
+Writing superblocks and filesystem accounting information: done
+
+mke2fs 1.47.2 (1-Jan-2025)
+Creating filesystem with 157056 4k blocks and 39280 inodes
+Filesystem UUID: 5c3d44d2-c531-4fcf-a346-53d79c22bbac
+Superblock backups stored on blocks:
+        32768, 98304
+
+Allocating group tables: done
+Writing inode tables: done
+Creating journal (4096 blocks): done
+Writing superblocks and filesystem accounting information: done
+
+mke2fs 1.47.2 (1-Jan-2025)
+Creating filesystem with 156672 4k blocks and 39200 inodes
+Filesystem UUID: 52895e60-1576-4181-8add-70e24d13a8ee
+Superblock backups stored on blocks:
+        32768, 98304
+
+Allocating group tables: done
+Writing inode tables: done
+Creating journal (4096 blocks): done
+Writing superblocks and filesystem accounting information: done
+
+mke2fs 1.47.2 (1-Jan-2025)
+Creating filesystem with 157056 4k blocks and 39280 inodes
+Filesystem UUID: db07b355-f82b-41ef-adeb-81cf38e634f7
+Superblock backups stored on blocks:
+        32768, 98304
+
+Allocating group tables: done
+Writing inode tables: done
+Creating journal (4096 blocks): done
+Writing superblocks and filesystem accounting information: done
+
+mke2fs 1.47.2 (1-Jan-2025)
+Creating filesystem with 156672 4k blocks and 39200 inodes
+Filesystem UUID: a14403b4-4698-45fd-91e3-af5bbec47d2e
+Superblock backups stored on blocks:
+        32768, 98304
+
+Allocating group tables: done
+Writing inode tables: done
+Creating journal (4096 blocks): done
+Writing superblocks and filesystem accounting information: done
+
+root@ubuntu-server-1:/home/padmin# mkdir -p /raid/part{1,2,3,4,5}
+root@ubuntu-server-1:/home/padmin# ls -l /raid/
+total 20
+drwxr-xr-x 2 root root 4096 Oct 10 08:58 part1
+drwxr-xr-x 2 root root 4096 Oct 10 08:58 part2
+drwxr-xr-x 2 root root 4096 Oct 10 08:58 part3
+drwxr-xr-x 2 root root 4096 Oct 10 08:58 part4
+drwxr-xr-x 2 root root 4096 Oct 10 08:58 part5
+root@ubuntu-server-1:/home/padmin# for i in $(seq 1 5); do mount /dev/md6p$i /raid/part$i; done
+root@ubuntu-server-1:/home/padmin# lsblk
+NAME                      MAJ:MIN RM   SIZE RO TYPE  MOUNTPOINTS
+fd0                         2:0    1     4K  0 disk
+loop0                       7:0    0  66.8M  1 loop  /snap/core24/1643
+loop1                       7:1    0   1.5M  1 loop  /snap/hwctl/123
+loop2                       7:2    0  50.1M  1 loop  /snap/snapd/27710
+loop3                       7:3    0   1.5M  1 loop  /snap/hwctl/131
+sda                         8:0    0    40G  0 disk
+├─sda1                      8:1    0     1M  0 part
+├─sda2                      8:2    0     2G  0 part  /boot
+└─sda3                      8:3    0    38G  0 part
+  └─ubuntu--vg-ubuntu--lv 252:0    0    38G  0 lvm   /
+sdb                         8:16   0     1G  0 disk
+└─md6                       9:6    0     3G  0 raid6
+  ├─md6p1                 259:0    0   612M  0 part  /raid/part1
+  ├─md6p2                 259:1    0 613.5M  0 part  /raid/part2
+  ├─md6p3                 259:2    0   612M  0 part  /raid/part3
+  ├─md6p4                 259:3    0 613.5M  0 part  /raid/part4
+  └─md6p5                 259:4    0   612M  0 part  /raid/part5
+sdc                         8:32   0     1G  0 disk
+└─md6                       9:6    0     3G  0 raid6
+  ├─md6p1                 259:0    0   612M  0 part  /raid/part1
+  ├─md6p2                 259:1    0 613.5M  0 part  /raid/part2
+  ├─md6p3                 259:2    0   612M  0 part  /raid/part3
+  ├─md6p4                 259:3    0 613.5M  0 part  /raid/part4
+  └─md6p5                 259:4    0   612M  0 part  /raid/part5
+sdd                         8:48   0     1G  0 disk
+└─md6                       9:6    0     3G  0 raid6
+  ├─md6p1                 259:0    0   612M  0 part  /raid/part1
+  ├─md6p2                 259:1    0 613.5M  0 part  /raid/part2
+  ├─md6p3                 259:2    0   612M  0 part  /raid/part3
+  ├─md6p4                 259:3    0 613.5M  0 part  /raid/part4
+  └─md6p5                 259:4    0   612M  0 part  /raid/part5
+sde                         8:64   0     1G  0 disk
+sdf                         8:80   0     1G  0 disk
+└─md6                       9:6    0     3G  0 raid6
+  ├─md6p1                 259:0    0   612M  0 part  /raid/part1
+  ├─md6p2                 259:1    0 613.5M  0 part  /raid/part2
+  ├─md6p3                 259:2    0   612M  0 part  /raid/part3
+  ├─md6p4                 259:3    0 613.5M  0 part  /raid/part4
+  └─md6p5                 259:4    0   612M  0 part  /raid/part5
+sdg                         8:96   0     1G  0 disk
+└─md6                       9:6    0     3G  0 raid6
+  ├─md6p1                 259:0    0   612M  0 part  /raid/part1
+  ├─md6p2                 259:1    0 613.5M  0 part  /raid/part2
+  ├─md6p3                 259:2    0   612M  0 part  /raid/part3
+  ├─md6p4                 259:3    0 613.5M  0 part  /raid/part4
+  └─md6p5                 259:4    0   612M  0 part  /raid/part5
+
+```
