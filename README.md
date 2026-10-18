@@ -75,8 +75,11 @@ UUID="5c6958d9-a202-4495-9f76-55780141634c"  /home xfs defaults 0 0
 
 ```
 В методичке ошибка или намеренно сделали так, чтобы поломать систему после финальной перезагрузки?
+```bash
 mkfs.ext4 /dev/ubuntu-vg/LogVol_Home
 echo "`blkid | grep Home | awk '{print $2}'` /home xfs defaults 0 0" >> /etc/fstab
+
+```
 Форматируем изначально в ext4 а автоматически монтируем в xfs
 
  
