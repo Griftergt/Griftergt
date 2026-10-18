@@ -1,349 +1,152 @@
-# Домашнее задание. Занятие 2. Работа с mdadm
+# Домашнее задание. Занятие 3. Работа с LVM
 
 ## Цель задания
-Научиться использовать утилиту для управления программными RAID-массивами в Linux.
+Создавать и управлять логическими томами в LVM.
 
-## Текст задания
-1. Добавить в виртуальную машину несколько дисков.
-2. Собрать RAID-0/1/5/10 на выбор.
-3. Сломать и почините RAID.
-4. Создать GPT таблицу, пять разделов и смонтировать их в системе
+## Задание
+1. Уменьшить том под / до 8G.
+2. Выделить том под /home.
+3. Выделить том под /var - сделать в mirror.
+4. /home - сделать том для снапшотов.
+5. Прописать монтирование в fstab. Попробовать с разными опциями и разными файловыми системами (на выбор).
+6. Работа со снапшотами:
+	сгенерить файлы в /home/;
+	снять снапшот;
+	удалить часть файлов;
+	восстановиться со снапшота.
 
 
 ## Выполнение
 
-### 1. Добавление дисков.
+### 1-4. Выделить тома.
 
-Добавлено 6 дисков по гигабайту.
-Пришлось поиграться с номерами устройств в гипервизоре, чтобы первый диск отображался как sda.
+Из-за огромного вывода при копировании корня начальное состояние терминала ушло в небытие.
+Показываю результат. Оказалось, к тому же, что в chroot-окружении история команд Bash по умолчанию не сохраняется автоматически. 
+
+
+```bash
+root@ubuntu-24-04-live-server:/home/padmin# lsblk
+NAME                       MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+fd0                          2:0    1    4K  0 disk
+sda                          8:0    0   32G  0 disk
+├─sda1                       8:1    0    1M  0 part
+├─sda2                       8:2    0    2G  0 part /boot
+└─sda3                       8:3    0   30G  0 part
+  ├─ubuntu--vg-LogVol_Home 252:0    0    2G  0 lvm  /home
+  └─ubuntu--vg-ubuntu--lv  252:1    0    8G  0 lvm  /
+sdb                          8:16   0   10G  0 disk
+sdc                          8:32   0    2G  0 disk
+sdd                          8:48   0    1G  0 disk
+├─vg_var-lv_var_rmeta_0    252:2    0    4M  0 lvm
+│ └─vg_var-lv_var          252:6    0  952M  0 lvm  /var
+└─vg_var-lv_var_rimage_0   252:3    0  952M  0 lvm
+  └─vg_var-lv_var          252:6    0  952M  0 lvm  /var
+sde                          8:64   0    1G  0 disk
+├─vg_var-lv_var_rmeta_1    252:4    0    4M  0 lvm
+│ └─vg_var-lv_var          252:6    0  952M  0 lvm  /var
+└─vg_var-lv_var_rimage_1   252:5    0  952M  0 lvm
+  └─vg_var-lv_var          252:6    0  952M  0 lvm  /var
+sr0                         11:0    1 1024M  1 rom
+```
+
+
+### 5. Прописать монтирование в fstab
+
+Прописывал как в методичке. 
+echo "`blkid | grep var: | awk '{print $2}'` /var ext4 defaults 0 0" >> /etc/fstab
+echo "`blkid | grep Home | awk '{print $2}'` /home xfs defaults 0 0" >> /etc/fstab
 
 
 ```bash
-sda                         8:0    0   40G  0 disk
-├─sda1                      8:1    0    1M  0 part
-├─sda2                      8:2    0    2G  0 part /boot
-└─sda3                      8:3    0   38G  0 part
-  └─ubuntu--vg-ubuntu--lv 252:0    0   38G  0 lvm  /
-sdb                         8:16   0    1G  0 disk
-sdc                         8:32   0    1G  0 disk
-sdd                         8:48   0    1G  0 disk
-sde                         8:64   0    1G  0 disk
-sdf                         8:80   0    1G  0 disk
-sdg                         8:96   0    1G  0 disk
+root@ubuntu-24-04-live-server:/home/padmin# cat /etc/fstab
+# /etc/fstab: static file system information.
+#
+# Use 'blkid' to print the universally unique identifier for a
+# device; this may be used with UUID= as a more robust way to name devices
+# that works even if disks are added and removed. See fstab(5).
+#
+# <file system> <mount point>   <type>  <options>       <dump>  <pass>
+# / was on /dev/ubuntu-vg/ubuntu-lv during curtin installation
+/dev/disk/by-id/dm-uuid-LVM-JcRW36FLBipbHPniGjr0oXQ0G2dlYEikeXKOeUEzXpTc78CZIvPVYOxdwgRaBUS6 / ext4 defaults 0 1
+# /boot was on /dev/sda2 during curtin installation
+/dev/disk/by-uuid/6a9c00fa-da8b-495f-b62b-38ed65988d07 /boot ext4 defaults 0 1
+UUID="90a1f4ef-dd7a-4f79-b555-240c258e2d26"  /var ext4 defaults 0 0
+UUID="5c6958d9-a202-4495-9f76-55780141634c"  /home xfs defaults 0 0
 
 ```
+В методичке ошибка или намеренно сделали так, чтобы поломать систему после финальной перезагрузки?
+mkfs.ext4 /dev/ubuntu-vg/LogVol_Home
+echo "`blkid | grep Home | awk '{print $2}'` /home xfs defaults 0 0" >> /etc/fstab
+Форматируем изначально в ext4 а автоматически монтируем в xfs
 
-### 2. Сборка RAID6
+ 
+### 6. Работа со снапшотами
 
-С первого раза не получилось собрать RAID из-за названия блочного устройства md
+   71  touch /home/file{1..20}
+   72  lvcreate -L 100MB -s -n home_snap  /dev/ubuntu-vg/LogVol_Home
+   73  rm -f /home/file{11..20}
+   74  ll /home/
+   75  umount /home
+   76  lvconvert --merge /dev/ubuntu-vg/home_snap
+   77  mount /dev/mapper/ubuntu--vg-LogVol_Home /home
+   78  ls -al /home
+
 
 ```bash
-root@ubuntu-server-1:/home/padmin# mdadm --create --verbose /dev/md_r6 -l 6 -n 6 /dev/sd{b,c,d,e,f,g}
-To optimize recovery speed, it is recommended to enable write-intent bitmap, do you want to enable it now? [y/N]? y
-mdadm: layout defaults to left-symmetric
-mdadm: layout defaults to left-symmetric
-mdadm: chunk size defaults to 512K
-mdadm: size set to 1046528K
-mdadm: /dev/md_r6 is an invalid name for an md device.  Try /dev/md/md_r6
-root@ubuntu-server-1:/home/padmin# lsblk
-NAME                      MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
-fd0                         2:0    1    4K  0 disk
-loop0                       7:0    0 66.8M  1 loop /snap/core24/1643
-loop1                       7:1    0  1.5M  1 loop /snap/hwctl/123
-loop2                       7:2    0 50.1M  1 loop /snap/snapd/27710
-loop3                       7:3    0  1.5M  1 loop /snap/hwctl/131
-sda                         8:0    0   40G  0 disk
-├─sda1                      8:1    0    1M  0 part
-├─sda2                      8:2    0    2G  0 part /boot
-└─sda3                      8:3    0   38G  0 part
-  └─ubuntu--vg-ubuntu--lv 252:0    0   38G  0 lvm  /
-sdb                         8:16   0    1G  0 disk
-sdc                         8:32   0    1G  0 disk
-sdd                         8:48   0    1G  0 disk
-sde                         8:64   0    1G  0 disk
-sdf                         8:80   0    1G  0 disk
-sdg                         8:96   0    1G  0 disk
-
-```
-Собрал RAID из 5 дисков. 
-
-```bash
-root@ubuntu-server-1:/home/padmin# mdadm --create --verbose /dev/md6 -l 6 -n 5 /dev/sd{b,c,d,e,f}
-To optimize recovery speed, it is recommended to enable write-intent bitmap, do you want to enable it now? [y/N]? y
-mdadm: layout defaults to left-symmetric
-mdadm: layout defaults to left-symmetric
-mdadm: chunk size defaults to 512K
-mdadm: size set to 1046528K
-mdadm: Defaulting to version 1.2 metadata
-mdadm: array /dev/md6 started.
-root@ubuntu-server-1:/home/padmin# lsblk
-NAME                      MAJ:MIN RM  SIZE RO TYPE  MOUNTPOINTS
-fd0                         2:0    1    4K  0 disk
-loop0                       7:0    0 66.8M  1 loop  /snap/core24/1643
-loop1                       7:1    0  1.5M  1 loop  /snap/hwctl/123
-loop2                       7:2    0 50.1M  1 loop  /snap/snapd/27710
-loop3                       7:3    0  1.5M  1 loop  /snap/hwctl/131
-sda                         8:0    0   40G  0 disk
-├─sda1                      8:1    0    1M  0 part
-├─sda2                      8:2    0    2G  0 part  /boot
-└─sda3                      8:3    0   38G  0 part
-  └─ubuntu--vg-ubuntu--lv 252:0    0   38G  0 lvm   /
-sdb                         8:16   0    1G  0 disk
-└─md6                       9:6    0    3G  0 raid6
-sdc                         8:32   0    1G  0 disk
-└─md6                       9:6    0    3G  0 raid6
-sdd                         8:48   0    1G  0 disk
-└─md6                       9:6    0    3G  0 raid6
-sde                         8:64   0    1G  0 disk
-└─md6                       9:6    0    3G  0 raid6
-sdf                         8:80   0    1G  0 disk
-└─md6                       9:6    0    3G  0 raid6
-sdg                         8:96   0    1G  0 disk
+root@ubuntu-24-04-live-server:/home/padmin# touch /home/file{1..20}
+root@ubuntu-24-04-live-server:/home/padmin# lvcreate -L 100MB -s -n home_snap \
+ /dev/ubuntu-vg/LogVol_Home
+  Logical volume "home_snap" created.
+root@ubuntu-24-04-live-server:/home/padmin# rm -f /home/file{11..20}
+root@ubuntu-24-04-live-server:/home/padmin# ll /home/
+total 28
+drwxr-xr-x  4 root   root    4096 окт 18 13:42 ./
+drwxr-xr-x 25 root   root    4096 окт 18 12:45 ../
+-rw-r--r--  1 root   root       0 окт 18 13:42 file1
+-rw-r--r--  1 root   root       0 окт 18 13:42 file10
+-rw-r--r--  1 root   root       0 окт 18 13:42 file2
+-rw-r--r--  1 root   root       0 окт 18 13:42 file3
+-rw-r--r--  1 root   root       0 окт 18 13:42 file4
+-rw-r--r--  1 root   root       0 окт 18 13:42 file5
+-rw-r--r--  1 root   root       0 окт 18 13:42 file6
+-rw-r--r--  1 root   root       0 окт 18 13:42 file7
+-rw-r--r--  1 root   root       0 окт 18 13:42 file8
+-rw-r--r--  1 root   root       0 окт 18 13:42 file9
+drwx------  2 root   root   16384 окт 18 13:38 lost+found/
+drwxr-x---  4 padmin padmin  4096 окт 18 13:20 padmin/
+root@ubuntu-24-04-live-server:/home/padmin# umount /home
+root@ubuntu-24-04-live-server:/home/padmin# lvconvert --merge /dev/ubuntu-vg/home_snap
+  Merging of volume ubuntu-vg/home_snap started.
+  ubuntu-vg/LogVol_Home: Merged: 100,00%
+root@ubuntu-24-04-live-server:/home/padmin# mount /dev/mapper/ubuntu--vg-LogVol_Home /home
+mount: (hint) your fstab has been modified, but systemd still uses
+       the old version; use 'systemctl daemon-reload' to reload.
+root@ubuntu-24-04-live-server:/home/padmin# ls -al /home
+total 28
+drwxr-xr-x  4 root   root    4096 окт 18 13:42 .
+drwxr-xr-x 25 root   root    4096 окт 18 12:45 ..
+-rw-r--r--  1 root   root       0 окт 18 13:42 file1
+-rw-r--r--  1 root   root       0 окт 18 13:42 file10
+-rw-r--r--  1 root   root       0 окт 18 13:42 file11
+-rw-r--r--  1 root   root       0 окт 18 13:42 file12
+-rw-r--r--  1 root   root       0 окт 18 13:42 file13
+-rw-r--r--  1 root   root       0 окт 18 13:42 file14
+-rw-r--r--  1 root   root       0 окт 18 13:42 file15
+-rw-r--r--  1 root   root       0 окт 18 13:42 file16
+-rw-r--r--  1 root   root       0 окт 18 13:42 file17
+-rw-r--r--  1 root   root       0 окт 18 13:42 file18
+-rw-r--r--  1 root   root       0 окт 18 13:42 file19
+-rw-r--r--  1 root   root       0 окт 18 13:42 file2
+-rw-r--r--  1 root   root       0 окт 18 13:42 file20
+-rw-r--r--  1 root   root       0 окт 18 13:42 file3
+-rw-r--r--  1 root   root       0 окт 18 13:42 file4
+-rw-r--r--  1 root   root       0 окт 18 13:42 file5
+-rw-r--r--  1 root   root       0 окт 18 13:42 file6
+-rw-r--r--  1 root   root       0 окт 18 13:42 file7
+-rw-r--r--  1 root   root       0 окт 18 13:42 file8
+-rw-r--r--  1 root   root       0 окт 18 13:42 file9
+drwx------  2 root   root   16384 окт 18 13:38 lost+found
+drwxr-x---  4 padmin padmin  4096 окт 18 13:20 padmin
 
 ```
 
-### 3. Поломка и починка RAID
-Сломал
-
-```bash
-root@ubuntu-server-1:/home/padmin# mdadm /dev/md6 --fail /dev/sde
-root@ubuntu-server-1:/home/padmin# cat /proc/mdstat
-Personalities : [raid4] [raid5] [raid6]
-md6 : active raid6 sdf[4] sde[3](F) sdd[2] sdc[1] sdb[0]
-      3139584 blocks super 1.2 level 6, 512k chunk, algorithm 2 [5/4] [UUU_U]
-      bitmap: 0/1 pages [0KB], 65536KB chunk
-
-unused devices: <none>
-root@ubuntu-server-1:/home/padmin# mdadm -D /dev/md6
-/dev/md6:
-           Version : 1.2
-     Creation Time : Sat Oct 10 08:50:38 2026
-        Raid Level : raid6
-        Array Size : 3139584 (2.99 GiB 3.21 GB)
-     Used Dev Size : 1046528 (1022.00 MiB 1071.64 MB)
-      Raid Devices : 5
-     Total Devices : 5
-       Persistence : Superblock is persistent
-
-     Intent Bitmap : Internal
-
-       Update Time : Sat Oct 10 08:52:12 2026
-             State : clean, degraded
-    Active Devices : 4
-   Working Devices : 4
-    Failed Devices : 1
-     Spare Devices : 0
-
-            Layout : left-symmetric
-        Chunk Size : 512K
-
-Consistency Policy : bitmap
-
-              Name : ubuntu-server-1:6  (local to host ubuntu-server-1)
-              UUID : bf677b13:e8f0e3cb:b06514cd:d6647871
-            Events : 20
-
-    Number   Major   Minor   RaidDevice State
-       0       8       16        0      active sync   /dev/sdb
-       1       8       32        1      active sync   /dev/sdc
-       2       8       48        2      active sync   /dev/sdd
-       -       0        0        3      removed
-       4       8       80        4      active sync   /dev/sdf
-
-       3       8       64        -      faulty   /dev/sde
-
-```
-
-Починил, подсунув другой диск.
-
-```bash
-root@ubuntu-server-1:/home/padmin# mdadm /dev/md6 --add /dev/sdg
-mdadm: added /dev/sdg
-root@ubuntu-server-1:/home/padmin# cat /proc/mdstat
-Personalities : [raid4] [raid5] [raid6]
-md6 : active raid6 sdg[5] sdf[4] sdd[2] sdc[1] sdb[0]
-      3139584 blocks super 1.2 level 6, 512k chunk, algorithm 2 [5/5] [UUUUU]
-      bitmap: 0/1 pages [0KB], 65536KB chunk
-
-unused devices: <none>
-root@ubuntu-server-1:/home/padmin# mdadm -D /dev/md6
-/dev/md6:
-           Version : 1.2
-     Creation Time : Sat Oct 10 08:50:38 2026
-        Raid Level : raid6
-        Array Size : 3139584 (2.99 GiB 3.21 GB)
-     Used Dev Size : 1046528 (1022.00 MiB 1071.64 MB)
-      Raid Devices : 5
-     Total Devices : 5
-       Persistence : Superblock is persistent
-
-     Intent Bitmap : Internal
-
-       Update Time : Sat Oct 10 08:53:55 2026
-             State : clean
-    Active Devices : 5
-   Working Devices : 5
-    Failed Devices : 0
-     Spare Devices : 0
-
-            Layout : left-symmetric
-        Chunk Size : 512K
-
-Consistency Policy : bitmap
-
-              Name : ubuntu-server-1:6  (local to host ubuntu-server-1)
-              UUID : bf677b13:e8f0e3cb:b06514cd:d6647871
-            Events : 41
-
-    Number   Major   Minor   RaidDevice State
-       0       8       16        0      active sync   /dev/sdb
-       1       8       32        1      active sync   /dev/sdc
-       2       8       48        2      active sync   /dev/sdd
-       5       8       96        3      active sync   /dev/sdg
-       4       8       80        4      active sync   /dev/sdf
-
-```
-
-### 4. Создание GPT таблицы, монтирование разделов в системе
-```bash
-root@ubuntu-server-1:/home/padmin# parted -s /dev/md6 mklabel gpt
-bash: parted: command not found
-root@ubuntu-server-1:/home/padmin# apt install parted
-Installing:
-  parted
- ...
-
-No user sessions are running outdated binaries.
-
-No VM guests are running outdated hypervisor (qemu) binaries on this host.
-root@ubuntu-server-1:/home/padmin# parted -s /dev/md6 mklabel gpt
-root@ubuntu-server-1:/home/padmin# parted /dev/md6 mkpart primary ext4 0% 20%
-Information: You may need to update /etc/fstab.
-
-root@ubuntu-server-1:/home/padmin# parted /dev/md6 mkpart primary ext4 20% 40%
-Information: You may need to update /etc/fstab.
-
-root@ubuntu-server-1:/home/padmin# parted /dev/md6 mkpart primary ext4 40% 60%
-Information: You may need to update /etc/fstab.
-
-root@ubuntu-server-1:/home/padmin# parted /dev/md6 mkpart primary ext4 60% 80%
-Information: You may need to update /etc/fstab.
-
-root@ubuntu-server-1:/home/padmin# parted /dev/md6 mkpart primary ext4 80% 100%
-Information: You may need to update /etc/fstab.
-
-root@ubuntu-server-1:/home/padmin# for i in $(seq 1 5); do sudo mkfs.ext4 /dev/md6p$i; done
-mke2fs 1.47.2 (1-Jan-2025)
-Creating filesystem with 156672 4k blocks and 39200 inodes
-Filesystem UUID: d3cb0b63-d0a4-45e6-90db-65b11b687b4b
-Superblock backups stored on blocks:
-        32768, 98304
-
-Allocating group tables: done
-Writing inode tables: done
-Creating journal (4096 blocks): done
-Writing superblocks and filesystem accounting information: done
-
-mke2fs 1.47.2 (1-Jan-2025)
-Creating filesystem with 157056 4k blocks and 39280 inodes
-Filesystem UUID: 5c3d44d2-c531-4fcf-a346-53d79c22bbac
-Superblock backups stored on blocks:
-        32768, 98304
-
-Allocating group tables: done
-Writing inode tables: done
-Creating journal (4096 blocks): done
-Writing superblocks and filesystem accounting information: done
-
-mke2fs 1.47.2 (1-Jan-2025)
-Creating filesystem with 156672 4k blocks and 39200 inodes
-Filesystem UUID: 52895e60-1576-4181-8add-70e24d13a8ee
-Superblock backups stored on blocks:
-        32768, 98304
-
-Allocating group tables: done
-Writing inode tables: done
-Creating journal (4096 blocks): done
-Writing superblocks and filesystem accounting information: done
-
-mke2fs 1.47.2 (1-Jan-2025)
-Creating filesystem with 157056 4k blocks and 39280 inodes
-Filesystem UUID: db07b355-f82b-41ef-adeb-81cf38e634f7
-Superblock backups stored on blocks:
-        32768, 98304
-
-Allocating group tables: done
-Writing inode tables: done
-Creating journal (4096 blocks): done
-Writing superblocks and filesystem accounting information: done
-
-mke2fs 1.47.2 (1-Jan-2025)
-Creating filesystem with 156672 4k blocks and 39200 inodes
-Filesystem UUID: a14403b4-4698-45fd-91e3-af5bbec47d2e
-Superblock backups stored on blocks:
-        32768, 98304
-
-Allocating group tables: done
-Writing inode tables: done
-Creating journal (4096 blocks): done
-Writing superblocks and filesystem accounting information: done
-
-root@ubuntu-server-1:/home/padmin# mkdir -p /raid/part{1,2,3,4,5}
-root@ubuntu-server-1:/home/padmin# ls -l /raid/
-total 20
-drwxr-xr-x 2 root root 4096 Oct 10 08:58 part1
-drwxr-xr-x 2 root root 4096 Oct 10 08:58 part2
-drwxr-xr-x 2 root root 4096 Oct 10 08:58 part3
-drwxr-xr-x 2 root root 4096 Oct 10 08:58 part4
-drwxr-xr-x 2 root root 4096 Oct 10 08:58 part5
-root@ubuntu-server-1:/home/padmin# for i in $(seq 1 5); do mount /dev/md6p$i /raid/part$i; done
-root@ubuntu-server-1:/home/padmin# lsblk
-NAME                      MAJ:MIN RM   SIZE RO TYPE  MOUNTPOINTS
-fd0                         2:0    1     4K  0 disk
-loop0                       7:0    0  66.8M  1 loop  /snap/core24/1643
-loop1                       7:1    0   1.5M  1 loop  /snap/hwctl/123
-loop2                       7:2    0  50.1M  1 loop  /snap/snapd/27710
-loop3                       7:3    0   1.5M  1 loop  /snap/hwctl/131
-sda                         8:0    0    40G  0 disk
-├─sda1                      8:1    0     1M  0 part
-├─sda2                      8:2    0     2G  0 part  /boot
-└─sda3                      8:3    0    38G  0 part
-  └─ubuntu--vg-ubuntu--lv 252:0    0    38G  0 lvm   /
-sdb                         8:16   0     1G  0 disk
-└─md6                       9:6    0     3G  0 raid6
-  ├─md6p1                 259:0    0   612M  0 part  /raid/part1
-  ├─md6p2                 259:1    0 613.5M  0 part  /raid/part2
-  ├─md6p3                 259:2    0   612M  0 part  /raid/part3
-  ├─md6p4                 259:3    0 613.5M  0 part  /raid/part4
-  └─md6p5                 259:4    0   612M  0 part  /raid/part5
-sdc                         8:32   0     1G  0 disk
-└─md6                       9:6    0     3G  0 raid6
-  ├─md6p1                 259:0    0   612M  0 part  /raid/part1
-  ├─md6p2                 259:1    0 613.5M  0 part  /raid/part2
-  ├─md6p3                 259:2    0   612M  0 part  /raid/part3
-  ├─md6p4                 259:3    0 613.5M  0 part  /raid/part4
-  └─md6p5                 259:4    0   612M  0 part  /raid/part5
-sdd                         8:48   0     1G  0 disk
-└─md6                       9:6    0     3G  0 raid6
-  ├─md6p1                 259:0    0   612M  0 part  /raid/part1
-  ├─md6p2                 259:1    0 613.5M  0 part  /raid/part2
-  ├─md6p3                 259:2    0   612M  0 part  /raid/part3
-  ├─md6p4                 259:3    0 613.5M  0 part  /raid/part4
-  └─md6p5                 259:4    0   612M  0 part  /raid/part5
-sde                         8:64   0     1G  0 disk
-sdf                         8:80   0     1G  0 disk
-└─md6                       9:6    0     3G  0 raid6
-  ├─md6p1                 259:0    0   612M  0 part  /raid/part1
-  ├─md6p2                 259:1    0 613.5M  0 part  /raid/part2
-  ├─md6p3                 259:2    0   612M  0 part  /raid/part3
-  ├─md6p4                 259:3    0 613.5M  0 part  /raid/part4
-  └─md6p5                 259:4    0   612M  0 part  /raid/part5
-sdg                         8:96   0     1G  0 disk
-└─md6                       9:6    0     3G  0 raid6
-  ├─md6p1                 259:0    0   612M  0 part  /raid/part1
-  ├─md6p2                 259:1    0 613.5M  0 part  /raid/part2
-  ├─md6p3                 259:2    0   612M  0 part  /raid/part3
-  ├─md6p4                 259:3    0 613.5M  0 part  /raid/part4
-  └─md6p5                 259:4    0   612M  0 part  /raid/part5
-
-```
