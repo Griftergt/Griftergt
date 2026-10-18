@@ -84,7 +84,8 @@ echo "`blkid | grep Home | awk '{print $2}'` /home xfs defaults 0 0" >> /etc/fst
 
  
 ### 6. Работа со снапшотами
-
+Башхистори
+```bash
    71  touch /home/file{1..20}
    72  lvcreate -L 100MB -s -n home_snap  /dev/ubuntu-vg/LogVol_Home
    73  rm -f /home/file{11..20}
@@ -93,8 +94,8 @@ echo "`blkid | grep Home | awk '{print $2}'` /home xfs defaults 0 0" >> /etc/fst
    76  lvconvert --merge /dev/ubuntu-vg/home_snap
    77  mount /dev/mapper/ubuntu--vg-LogVol_Home /home
    78  ls -al /home
-
-
+```
+В терминале
 ```bash
 root@ubuntu-24-04-live-server:/home/padmin# touch /home/file{1..20}
 root@ubuntu-24-04-live-server:/home/padmin# lvcreate -L 100MB -s -n home_snap \
