@@ -65,10 +65,10 @@ otus4  compressratio         1.00x                      -
 Импортировал готовый пул из архива и определил его параметры.
 
 ```bash
-root@ubuntu-24-04-live-server:/home/padmin# wget -O archive.tar.gz --no-check-certificate 'https:                         //drive.usercontent.google.com/download?id=1MvrcEp-WgAQe57aDEzxSRalPAwbNN1Bb&export=download'
---2026-10-19 16:54:37--  https://drive.usercontent.google.com/download?id=1MvrcEp-WgAQe57aDEzxSRa                         lPAwbNN1Bb&export=download
-Resolving drive.usercontent.google.com (drive.usercontent.google.com)... 173.194.220.132, 2a00:14                         50:4010:c0a::84
-Connecting to drive.usercontent.google.com (drive.usercontent.google.com)|173.194.220.132|:443...                          connected.
+root@ubuntu-24-04-live-server:/home/padmin# wget -O archive.tar.gz --no-check-certificate 'https://drive.usercontent.google.com/download?id=1MvrcEp-WgAQe57aDEzxSRalPAwbNN1Bb&export=download'
+--2026-10-19 16:54:37--  https://drive.usercontent.google.com/download?id=1MvrcEp-WgAQe57aDEzxSRalPAwbNN1Bb&export=download
+Resolving drive.usercontent.google.com (drive.usercontent.google.com)... 173.194.220.132, 2a00:1450:4010:c0a::84
+Connecting to drive.usercontent.google.com (drive.usercontent.google.com)|173.194.220.132|:443...connected.
 HTTP request sent, awaiting response... 200 OK
 Length: 7275140 (6,9M) [application/octet-stream]
 Saving to: ‘archive.tar.gz’
