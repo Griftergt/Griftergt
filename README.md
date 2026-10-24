@@ -1,5 +1,6 @@
 [nfss_script.sh](https://github.com/user-attachments/files/33909195/nfss_script.sh)
-nfsc_script.sh](https://github.com/user-attachments/files/33909184/nfsc_script.sh)[#!/usr/bin/env bash
+
+[nfsc_script.sh](https://github.com/user-attachments/files/33909184/nfsc_script.sh)
 
 # Домашнее задание. 5. Работа с NFS
 
