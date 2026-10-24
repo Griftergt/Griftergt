@@ -1,3 +1,6 @@
+[nfsc_script.sh](https://github.com/user-attachments/files/33909159/nfsc_script.sh)[nfss_script.sh](https://github.com/user-attachments/files/33909154/nfss_script.sh)[[nfsc_script.sh](https://github.com/user-attachments/files/33909155/nfsc_script.sh)Uploading nfss_script.sh…]()
+[U[nfss_script.sh](https://github.com/user-attachments/files/33909160/nfss_script.sh)ploading nfsc_script.sh…]()
+
 # Домашнее задание. 5. Работа с NFS
 
 ## Цель задания
