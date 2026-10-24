@@ -1,5 +1,72 @@
-[nfsc_script.sh](https://github.com/user-attachments/files/33909159/nfsc_script.sh)[nfss_script.sh](https://github.com/user-attachments/files/33909154/nfss_script.sh)[[nfsc_script.sh](https://github.com/user-attachments/files/33909155/nfsc_script.sh)Uploading nfss_script.sh…]()
-[U[nfss_script.sh](https://github.com/user-attachments/files/33909160/nfss_script.sh)ploading nfsc_script.sh…]()
+[nfsc_script.sh](https://github.com/user-attachments/files/33909184/nfsc_script.sh)[#!/usr/bin/env bash
+#
+# nfsc_script.sh — конфигурирование NFS-клиента (NFSv3, automount через systemd)
+# Запускать от root (sudo ./nfsc_script.sh)
+#
+set -euo pipefail
+
+# ===== Настройки =====
+NFS_SERVER_IP="10.1.1.70"          # IP NFS-сервера
+NFS_EXPORT="/srv/share/"           # экспорт на сервере (со слэшем на конце)
+MOUNT_POINT="/mnt"                 # точка монтирования
+
+# ===== Проверка root =====
+if [[ "${EUID}" -ne 0 ]]; then
+  echo "Ошибка: запускать от root (sudo)." >&2
+  exit 1
+fi
+
+echo "==> 1. Установка nfs-common"
+export DEBIAN_FRONTEND=noninteractive
+if ! dpkg -s nfs-common >/dev/null 2>&1; then
+  apt-get update
+  apt-get install -y nfs-common
+else
+  echo "    nfs-common уже установлен, пропускаю."
+fi
+
+echo "==> 2. Подготовка точки монтирования"
+mkdir -p "${MOUNT_POINT}"
+
+echo "==> 3. Настройка /etc/fstab (NFSv3 + x-systemd.automount)"
+FSTAB_LINE="${NFS_SERVER_IP}:${NFS_EXPORT} ${MOUNT_POINT} nfs vers=3,noauto,x-systemd.automount 0 0"
+echo "${FSTAB_LINE}" >> /etc/fstab
+echo "    Добавлена строка:"
+echo "    ${FSTAB_LINE}"
+tail -n 5 /etc/fstab
+
+echo "==> 4. Перечитывание systemd и перезапуск remote-fs.target"
+systemctl daemon-reload
+systemctl restart remote-fs.target
+
+echo "==> 5. Проверка доступности экспорта с сервера (showmount)"
+# rpcbind на клиенте уже поднят пакетом nfs-common
+showmount -e "${NFS_SERVER_IP}" || echo "    ВНИМАНИЕ: showmount -e не удался (проверьте сеть/фаервол)"
+
+echo "==> 6. Инициируем автомонтирование (обращение к точке)"
+ls -la "${MOUNT_POINT}" >/dev/null
+
+echo "==> 7. Проверка монтирования"
+if mount | grep -q " ${MOUNT_POINT} "; then
+  echo "    Монтирование активно:"
+  mount | grep " ${MOUNT_POINT} "
+else
+  echo "    Монтирование пока не активно. Обращаемся внутрь ${MOUNT_POINT} для триггера automount..."
+  ls -la "${MOUNT_POINT}/upload" >/dev/null 2>&1 || true
+  mount | grep " ${MOUNT_POINT} " || echo "    ВНИМАНИЕ: монтирование не появилось."
+fi
+
+echo "==> 8. Проверка NFSv3 (vers=3)"
+if mount | grep -q "vers=3"; then
+  echo "    OK: используется NFSv3 (vers=3)."
+else
+  echo "    ВНИМАНИЕ: в опциях монтирования не найдено vers=3."
+fi
+
+echo
+echo "Готово. Клиент настроен на automount ${NFS_SERVER_IP}:${NFS_EXPORT} -> ${MOUNT_POINT}"
+echo "Проверка: mount | grep ${MOUNT_POINT}"
+Uploading nfsc_script.sh…]()
 
 # Домашнее задание. 5. Работа с NFS
 
