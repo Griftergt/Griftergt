@@ -20,7 +20,7 @@
 Установлено:
 ```bash
 nfs-kernel-server 	#на сервер
-nfs-common 			#на клиент
+nfs-common 		#на клиент
 ```
  
 Сделать, чтобы сервер слушал udp
