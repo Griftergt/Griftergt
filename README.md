@@ -1,173 +1,173 @@
-# Домашнее задание 4. Практические навыки работы с ZFS
+# Домашнее задание. 5. Работа с NFS
 
 ## Цель задания
-научится самостоятельно устанавливать ZFS, настраивать пулы, изучить основные возможности ZFS;
+Научиться самостоятельно разворачивать сервис NFS и подключать к нему клиентов.
 
 ## Задание
-1. Определить алгоритм с наилучшим сжатием:
-- определить, какие алгоритмы сжатия поддерживает zfs (gzip, zle, lzjb, lz4);
-- создать 4 файловых системы, на каждой применить свой алгоритм сжатия;
-- для сжатия использовать либо текстовый файл, либо группу файлов.
-2. Определить настройки пула.
-- С помощью команды zfs import собрать pool ZFS.
-- Командами zfs определить настройки:
-3. Работа со снапшотами
-- скопировать файл из удаленной директории;
-- восстановить файл локально. zfs receive;
-- найти зашифрованное сообщение в файле secret_message.
+- запустить 2 виртуальных машины (сервер NFS и клиента);
+- на сервере NFS должна быть подготовлена и экспортирована директория;
+- в экспортированной директории должна быть поддиректория с именем `upload` с правами на запись в неё;
+- экспортированная директория должна автоматически монтироваться на клиенте при старте виртуальной машины (systemd, autofs или fstab — любым способом);
+- монтирование и работа NFS на клиенте должна быть организована с использованием NFSv3.
 
 ## Выполнение
 
-### 1. Определить алгоритм с наилучшим сжатием:
-
-Установка ZFS
+### 1. Подготовка стенда
+ВМ:
+-клиент 10.1.1.71
+-сервер 10.1.1.70
+Установлено:
 ```bash
-apt install zfsutils-linux
+nfs-kernel-server 	#на сервер
+nfs-common 			#на клиент
 ```
  
-Создание 4 пулов mirror с разными алгоритмами сжатиея
+Сделать, чтобы сервер слушал udp
 ```bash
-# Создание 4 пулов 
-zpool create otus1 mirror /dev/sdb /dev/sdc
-zpool create otus2 mirror /dev/sdd /dev/sde
-zpool create otus3 mirror /dev/sdf /dev/sdg
-zpool create otus4 mirror /dev/sdh /dev/sdi
+sudo nano /etc/nfs.conf
 
-# Разные алгоритмы сжатия
-zfs set compression=lzjb otus1
-zfs set compression=lz4 otus2
-zfs set compression=gzip-9 otus3
-zfs set compression=zle otus4
-
-# Проверка
-zfs get all | grep compression
+[nfsd]
+udp=y
 ```
-Результат проверки сжатия
+Дальше прошёл по методичке, и проверил что всё работает.
+Этого оказалось достаточно для написания скрипта
+
+### 2. Применение скрипта
+
+На сервере 
 
 ```bash
-root@ubuntu-24-04-live-server:/home/padmin# zfs list
-NAME    USED  AVAIL  REFER  MOUNTPOINT
-otus1  22.6M   329M  22.1M  /otus1
-otus2  18.6M   333M  18.2M  /otus2
-otus3  11.8M   340M  11.3M  /otus3
-otus4  40.0M   312M  39.5M  /otus4
-root@ubuntu-24-04-live-server:/home/padmin# zfs get all | grep compressratio | grep -v ref
-otus1  compressratio         1.78x                      -
-otus2  compressratio         2.16x                      -
-otus3  compressratio         3.47x                      -
-otus4  compressratio         1.00x                      -
-
-```
-лучший результат сжатия — gzip-9 (otus3, compressratio 3.47x)
-
-### 2. Определить настройки пула
-
-Импортировал готовый пул из архива и определил его параметры.
-
-```bash
-root@ubuntu-24-04-live-server:/home/padmin# wget -O archive.tar.gz --no-check-certificate 'https://drive.usercontent.google.com/download?id=1MvrcEp-WgAQe57aDEzxSRalPAwbNN1Bb&export=download'
---2026-10-19 16:54:37--  https://drive.usercontent.google.com/download?id=1MvrcEp-WgAQe57aDEzxSRalPAwbNN1Bb&export=download
-Resolving drive.usercontent.google.com (drive.usercontent.google.com)... 173.194.220.132, 2a00:1450:4010:c0a::84
-Connecting to drive.usercontent.google.com (drive.usercontent.google.com)|173.194.220.132|:443...connected.
-HTTP request sent, awaiting response... 200 OK
-Length: 7275140 (6,9M) [application/octet-stream]
-Saving to: ‘archive.tar.gz’
-
-archive.tar.gz           100%[===============================>]   6,94M  14,1MB/s    in 0,5s
-
-2026-10-19 16:54:43 (14,1 MB/s) - ‘archive.tar.gz’ saved [7275140/7275140]
-
-root@ubuntu-24-04-live-server:/home/padmin# ll
-total 7144
-drwxr-x--- 4 padmin padmin    4096 окт 19 16:54 ./
-drwxr-xr-x 3 root   root      4096 окт 13 05:44 ../
--rw-r--r-- 1 root   root   7275140 дек  6  2023 archive.tar.gz
--rw------- 1 padmin padmin     158 окт 18 19:06 .bash_history
--rw-r--r-- 1 padmin padmin     220 мар 31  2024 .bash_logout
--rw-r--r-- 1 padmin padmin    3771 мар 31  2024 .bashrc
-drwx------ 2 padmin padmin    4096 окт 13 05:45 .cache/
--rw-r--r-- 1 padmin padmin     807 мар 31  2024 .profile
-drwx------ 2 padmin padmin    4096 окт 13 05:45 .ssh/
--rw-r--r-- 1 padmin padmin       0 окт 13 05:46 .sudo_as_admin_successful
--rw------- 1 padmin padmin     140 окт 19 16:41 .Xauthority
-root@ubuntu-24-04-live-server:/home/padmin# tar -xzvf archive.tar.gz
-zpoolexport/
-zpoolexport/filea
-zpoolexport/fileb
-root@ubuntu-24-04-live-server:/home/padmin# zpool import -d zpoolexport/
-   pool: otus
-     id: 6554193320433390805
-  state: ONLINE
-status: Some supported features are not enabled on the pool.
-        (Note that they may be intentionally disabled if the
-        'compatibility' property is set.)
- action: The pool can be imported using its name or numeric identifier, though
-        some features will not be available without an explicit 'zpool upgrade'.
- config:
-
-        otus                                ONLINE
-          mirror-0                          ONLINE
-            /home/padmin/zpoolexport/filea  ONLINE
-            /home/padmin/zpoolexport/fileb  ONLINE
-root@ubuntu-24-04-live-server:/home/padmin# zpool import -d zpoolexport/ otus
-
-```
-
-Определение настроек
-```bash
-root@ubuntu-24-04-live-server:/home/padmin# zfs get available otus # размер хранилища
-NAME  PROPERTY   VALUE  SOURCE
-otus  available  350M   -
-root@ubuntu-24-04-live-server:/home/padmin# zfs get readonly otus  # тип (read-write)
-NAME  PROPERTY  VALUE   SOURCE
-otus  readonly  off     default
-root@ubuntu-24-04-live-server:/home/padmin# zfs get recordsize otus  # recordsize
-NAME  PROPERTY    VALUE    SOURCE
-otus  recordsize  128K     local
-root@ubuntu-24-04-live-server:/home/padmin# zfs get compression otus # сжатие
-NAME  PROPERTY     VALUE           SOURCE
-otus  compression  zle             local
-root@ubuntu-24-04-live-server:/home/padmin# zfs get checksum otus	# контрольная сумма
-NAME  PROPERTY  VALUE      SOURCE
-otus  checksum  sha256     local
-```
-
- 
-### 3. Работа со снапшотами
-
-  скопировал файл из удаленной директории
-```bash
-padmin@ubuntu-24-04-live-server:~/otus_task2.file1$ wget -O otus_task2.file --no-check-certificate 'https://drive.usercontent.google.com/download?id=1wgxjih8YZ-cqLqaZVa0lA3h3Y029c3oI&export=download'
---2026-10-19 18:50:15--  https://drive.usercontent.google.com/download?id=1wgxjih8YZ-cqLqaZVa0lA3h3Y029c3oI&export=download
-Resolving drive.usercontent.google.com (drive.usercontent.google.com)... 173.194.220.132, 2a00:1450:4010:c05::84
-Connecting to drive.usercontent.google.com (drive.usercontent.google.com)|173.194.220.132|:443... connected.
-HTTP request sent, awaiting response... 200 OK
-Length: 5432736 (5,2M) [application/octet-stream]
-Saving to: ‘otus_task2.file’
-
-otus_task2.file                100%[==================================================>]   5,18M  16,5MB/s    in 0,3s
-
-2026-10-19 18:50:17 (16,5 MB/s) - ‘otus_task2.file’ saved [5432736/5432736]
-
-padmin@ubuntu-24-04-live-server:~/otus_task2.file1$
-
-```
-Восстановление из снапшота
-```bash
-padmin@ubuntu-24-04-live-server:~/otus_task2.file1$ sudo zfs receive otus1/test@today < otus_task2.file
+padmin@ubuntu-server24-nfss:~$ chmod +x nfss_script.sh
+padmin@ubuntu-server24-nfss:~$ sudo su
 [sudo] password for padmin:
+root@ubuntu-server24-nfss:/home/padmin# ls -l
+total 4
+-rwxrwxr-x 1 padmin padmin 1995 окт 24 16:07 nfss_script.sh
+root@ubuntu-server24-nfss:/home/padmin# ./nfss_script.sh
+==> 1. Установка nfs-kernel-server
+    nfs-kernel-server уже установлен, пропускаю.
+==> 2. Создание и настройка экспортируемой директории
+drwxr-xr-x 3 nobody nogroup 4096 окт 24 16:08 /srv/share
+drwxrwxrwx 2 nobody nogroup 4096 окт 24 16:08 /srv/share/upload
+==> 3. Формирование /etc/exports
+/srv/share 10.1.1.71/32(rw,sync,root_squash,no_subtree_check)
+==> 4. Применение экспорта
+==> 5. Включение и перезапуск nfs-server
+==> 6. Проверка экспорта
+/srv/share  10.1.1.71/32(sync,wdelay,hide,no_subtree_check,sec=sys,rw,secure,root_squash,no_all_squash)
+==> 7. Проверка слушающих портов 2049 (tcp/udp) и 111 (tcp/udp)
+udp   UNCONN 0      0            0.0.0.0:2049       0.0.0.0:*                                                             
+udp   UNCONN 0      0            0.0.0.0:111        0.0.0.0:*    users:(("rpcbind",pid=1650,fd=5),("systemd",pid=1,fd=103))
+udp   UNCONN 0      0               [::]:2049          [::]:*                                                             
+udp   UNCONN 0      0               [::]:111           [::]:*    users:(("rpcbind",pid=1650,fd=7),("systemd",pid=1,fd=105))
+tcp   LISTEN 0      4096         0.0.0.0:111        0.0.0.0:*    users:(("rpcbind",pid=1650,fd=4),("systemd",pid=1,fd=102))
+tcp   LISTEN 0      64           0.0.0.0:2049       0.0.0.0:*                                                             
+tcp   LISTEN 0      4096            [::]:111           [::]:*    users:(("rpcbind",pid=1650,fd=6),("systemd",pid=1,fd=104))
+tcp   LISTEN 0      64              [::]:2049          [::]:*                                                             
+
+Готово. NFS-сервер настроен и экспортирует /srv/share для 10.1.1.71.
+root@ubuntu-server24-nfss:/home/padmin# cd /srv/share/upload
+root@ubuntu-server24-nfss:/srv/share/upload# touch check_file
+root@ubuntu-server24-nfss:/srv/share/upload# ls -l
+total 0
+-rw-r--r-- 1 root root 0 окт 24 16:11 check_file
+root@ubuntu-server24-nfss:/srv/share/upload# ls -l /srv/share/upload/
+total 0
+-rw-r--r-- 1 root   root    0 окт 24 16:11 check_file
+-rw-r--r-- 1 nobody nogroup 0 окт 24 16:12 client_file
+root@ubuntu-server24-nfss:/srv/share/upload#
 ```
-Зашифрованное сообщение в файле secret_message
+
+На клиенте
 ```bash
-padmin@ubuntu-24-04-live-server:~/otus_task2.file1$ find /otus1/test -name "secret_message"
-/otus1/test/task1/file_mess/secret_message
-padmin@ubuntu-24-04-live-server:~/otus_task2.file1$ cat /otus1/test/task1/file_mess/secret_message
-https://otus.ru/lessons/linux-hl/
-in
+padmin@ubuntu-server24-nfsc:~$ chmod +x nfsc_script.sh
+padmin@ubuntu-server24-nfsc:~$ sudo su
+[sudo] password for padmin:
+Sorry, try again.
+[sudo] password for padmin:
+root@ubuntu-server24-nfsc:/home/padmin# ls -l
+total 4
+-rwxr-xr-x 1 padmin padmin 2836 окт 24 16:06 nfsc_script.sh
+root@ubuntu-server24-nfsc:/home/padmin# ./nfsc_script.sh
+==> 1. Установка nfs-common
+    nfs-common уже установлен, пропускаю.
+==> 2. Подготовка точки монтирования
+==> 3. Настройка /etc/fstab (NFSv3 + x-systemd.automount)
+    Добавлена строка:
+    10.1.1.70:/srv/share/ /mnt nfs vers=3,noauto,x-systemd.automount 0 0
+/dev/disk/by-id/dm-uuid-LVM-3r1jwJefkfGkseE2VeRGgnTKpW0R1rCFaTIb1CxVlsVIZJjfJGMpUFmN4bG75sEb / ext4 defaults 0 1
+# /boot was on /dev/sda2 during curtin installation
+/dev/disk/by-uuid/f9861772-d35e-4954-9ac4-aaf6a85319e6 /boot ext4 defaults 0 1
+/swap.img       none    swap    sw      0       0
+10.1.1.70:/srv/share/ /mnt nfs vers=3,noauto,x-systemd.automount 0 0
+==> 4. Перечитывание systemd и перезапуск remote-fs.target
+==> 5. Проверка доступности экспорта с сервера (showmount)
+Export list for 10.1.1.70:
+/srv/share 10.1.1.71/32
+==> 6. Инициируем автомонтирование (обращение к точке)
+==> 7. Проверка монтирования
+    Монтирование активно:
+systemd-1 on /mnt type autofs (rw,relatime,fd=70,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=21654)
+10.1.1.70:/srv/share/ on /mnt type nfs (rw,relatime,vers=3,rsize=524288,wsize=524288,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,mountaddr=10.1.1.70,mountvers=3,mountport=36031,mountproto=udp,local_lock=none,addr=10.1.1.70)
+==> 8. Проверка NFSv3 (vers=3)
+    OK: используется NFSv3 (vers=3).
+
+Готово. Клиент настроен на automount 10.1.1.70:/srv/share/ -> /mnt
+Проверка: mount | grep /mnt
+root@ubuntu-server24-nfsc:/home/padmin#  mount | grep /mnt
+systemd-1 on /mnt type autofs (rw,relatime,fd=70,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=21654)
+10.1.1.70:/srv/share/ on /mnt type nfs (rw,relatime,vers=3,rsize=524288,wsize=524288,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,mountaddr=10.1.1.70,mountvers=3,mountport=36031,mountproto=udp,local_lock=none,addr=10.1.1.70)
+root@ubuntu-server24-nfsc:/home/padmin# cd /srv/share/upload
+bash: cd: /srv/share/upload: No such file or directory
+root@ubuntu-server24-nfsc:/home/padmin# ls -l /mnt/upload/
+total 0
+-rw-r--r-- 1 root root 0 окт 24 16:11 check_file
+root@ubuntu-server24-nfsc:/home/padmin# touch /mnt/upload/client_file
+root@ubuntu-server24-nfsc:/home/padmin# ls -l /mnt/upload/
+total 0
+-rw-r--r-- 1 root   root    0 окт 24 16:11 check_file
+-rw-r--r-- 1 nobody nogroup 0 окт 24 16:12 client_file
 
 ```
 
+ 
+### 3. Проверка применения скрипта после перезагрузки
+
+На клиенте
+```bash
+padmin@ubuntu-server24-nfsc:~$ sudo su
+[sudo] password for padmin:
+root@ubuntu-server24-nfsc:/home/padmin# showmount -a 10.1.1.70
+All mount points on 10.1.1.70:
+root@ubuntu-server24-nfsc:/home/padmin# ls /mnt/upload/
+check_file  client_file
+root@ubuntu-server24-nfsc:/home/padmin# mount | grep /mnt
+systemd-1 on /mnt type autofs (rw,relatime,fd=54,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=3854)
+10.1.1.70:/srv/share/ on /mnt type nfs (rw,relatime,vers=3,rsize=524288,wsize=524288,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,mountaddr=10.1.1.70,mountvers=3,mountport=36031,mountproto=udp,local_lock=none,addr=10.1.1.70)
+root@ubuntu-server24-nfsc:/home/padmin# touch /mnt/upload/final_check
+root@ubuntu-server24-nfsc:/home/padmin# ls -l /mnt/upload/
+total 0
+-rw-r--r-- 1 root   root    0 окт 24 16:11 check_file
+-rw-r--r-- 1 nobody nogroup 0 окт 24 16:12 client_file
+-rw-r--r-- 1 nobody nogroup 0 окт 24 16:29 final_check
 
 
 ```
+На сервере
+```bash
+padmin@ubuntu-server24-nfss:~$ ls -l /srv/share/upload/
+total 0
+-rw-r--r-- 1 root   root    0 окт 24 16:11 check_file
+-rw-r--r-- 1 nobody nogroup 0 окт 24 16:12 client_file
+-rw-r--r-- 1 nobody nogroup 0 окт 24 16:29 final_check
+padmin@ubuntu-server24-nfss:~$ exportfs -s
+exportfs: could not open /var/lib/nfs/.etab.lock for locking: errno 13 (Permission denied)
+padmin@ubuntu-server24-nfss:~$ sudo su
+[sudo] password for padmin:
+root@ubuntu-server24-nfss:/home/padmin# exportfs -s
+/srv/share  10.1.1.71/32(sync,wdelay,hide,no_subtree_check,sec=sys,rw,secure,root_squash,no_all_squash)
+root@ubuntu-server24-nfss:/home/padmin# showmount -a 10.1.1.70
+All mount points on 10.1.1.70:
+10.1.1.71:/srv/share
 
+```
