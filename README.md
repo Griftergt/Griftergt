@@ -447,8 +447,99 @@ dpkg-deb -x /usr/local/src/nginx_1.24.0-2ubuntu7.19_amd64.deb /tmp/nginx-check
 ```
 
 ### 5 Размещаем в репозитории
+Создан каталог репозитория, скопированы пакеты, сгенерированы индекс Packages.gz, создан файл Release
+```bash
+root@ubuntu-server:/tmp# ls -l /var/www/html/repo
+total 1424
+-rw-r--r-- 1 root root  24162 окт 28 12:15 libnginx-mod-http-geoip_1.24.0-2ubuntu7.19_amd64.deb
+-rw-r--r-- 1 root root  28256 окт 28 12:15 libnginx-mod-http-image-filter_1.24.0-2ubuntu7.19_amd64.deb
+-rw-r--r-- 1 root root  36742 окт 28 12:15 libnginx-mod-http-perl_1.24.0-2ubuntu7.19_amd64.deb
+-rw-r--r-- 1 root root  26650 окт 28 12:15 libnginx-mod-http-xslt-filter_1.24.0-2ubuntu7.19_amd64.deb
+-rw-r--r-- 1 root root  59618 окт 28 12:15 libnginx-mod-mail_1.24.0-2ubuntu7.19_amd64.deb
+-rw-r--r-- 1 root root  86860 окт 28 12:15 libnginx-mod-stream_1.24.0-2ubuntu7.19_amd64.deb
+-rw-r--r-- 1 root root  23232 окт 28 12:15 libnginx-mod-stream-geoip_1.24.0-2ubuntu7.19_amd64.deb
+-rw-r--r-- 1 root root 861556 окт 28 12:15 nginx_1.24.0-2ubuntu7.19_amd64.deb
+-rw-r--r-- 1 root root  45340 окт 28 12:15 nginx-common_1.24.0-2ubuntu7.19_all.deb
+-rw-r--r-- 1 root root  18794 окт 28 12:15 nginx-core_1.24.0-2ubuntu7.19_all.deb
+-rw-r--r-- 1 root root 123924 окт 28 12:15 nginx-dev_1.24.0-2ubuntu7.19_all.deb
+-rw-r--r-- 1 root root  26784 окт 28 12:15 nginx-doc_1.24.0-2ubuntu7.19_all.deb
+-rw-r--r-- 1 root root  19028 окт 28 12:15 nginx-extras_1.24.0-2ubuntu7.19_amd64.deb
+-rw-r--r-- 1 root root  18860 окт 28 12:15 nginx-full_1.24.0-2ubuntu7.19_all.deb
+-rw-r--r-- 1 root root  18570 окт 28 12:15 nginx-light_1.24.0-2ubuntu7.19_all.deb
+-rw-r--r-- 1 root root   4588 окт 28 12:15 Packages.gz
+-rw-r--r-- 1 root root    647 окт 28 12:15 Release
+
+
+```
+Проверка доступности репозитория
+```bash
+root@ubuntu-server:/tmp# curl -s http://localhost/repo/ | head -20
+<html>
+<head><title>Index of /repo/</title></head>
+<body>
+<h1>Index of /repo/</h1><hr><pre><a href="../">../</a>
+<a href="Packages.gz">Packages.gz</a>                                        28-Oct-2026 12:15                4588
+<a href="Release">Release</a>                                            28-Oct-2026 12:15                 647
+<a href="libnginx-mod-http-geoip_1.24.0-2ubuntu7.19_amd64.deb">libnginx-mod-http-geoip_1.24.0-2ubuntu7.19_amd6..&gt;</a> 28-Oct-2026 12:15               24162
+<a href="libnginx-mod-http-image-filter_1.24.0-2ubuntu7.19_amd64.deb">libnginx-mod-http-image-filter_1.24.0-2ubuntu7...&gt;</a> 28-Oct-2026 12:15               28256
+<a href="libnginx-mod-http-perl_1.24.0-2ubuntu7.19_amd64.deb">libnginx-mod-http-perl_1.24.0-2ubuntu7.19_amd64..&gt;</a> 28-Oct-2026 12:15               36742
+<a href="libnginx-mod-http-xslt-filter_1.24.0-2ubuntu7.19_amd64.deb">libnginx-mod-http-xslt-filter_1.24.0-2ubuntu7.1..&gt;</a> 28-Oct-2026 12:15               26650
+<a href="libnginx-mod-mail_1.24.0-2ubuntu7.19_amd64.deb">libnginx-mod-mail_1.24.0-2ubuntu7.19_amd64.deb</a>     28-Oct-2026 12:15               59618
+<a href="libnginx-mod-stream-geoip_1.24.0-2ubuntu7.19_amd64.deb">libnginx-mod-stream-geoip_1.24.0-2ubuntu7.19_am..&gt;</a> 28-Oct-2026 12:15               23232
+<a href="libnginx-mod-stream_1.24.0-2ubuntu7.19_amd64.deb">libnginx-mod-stream_1.24.0-2ubuntu7.19_amd64.deb</a>   28-Oct-2026 12:15               86860
+<a href="nginx-common_1.24.0-2ubuntu7.19_all.deb">nginx-common_1.24.0-2ubuntu7.19_all.deb</a>            28-Oct-2026 12:15               45340
+<a href="nginx-core_1.24.0-2ubuntu7.19_all.deb">nginx-core_1.24.0-2ubuntu7.19_all.deb</a>              28-Oct-2026 12:15               18794
+<a href="nginx-dev_1.24.0-2ubuntu7.19_all.deb">nginx-dev_1.24.0-2ubuntu7.19_all.deb</a>               28-Oct-2026 12:15              123924
+<a href="nginx-doc_1.24.0-2ubuntu7.19_all.deb">nginx-doc_1.24.0-2ubuntu7.19_all.deb</a>               28-Oct-2026 12:15               26784
+<a href="nginx-extras_1.24.0-2ubuntu7.19_amd64.deb">nginx-extras_1.24.0-2ubuntu7.19_amd64.deb</a>          28-Oct-2026 12:15               19028
+<a href="nginx-full_1.24.0-2ubuntu7.19_all.deb">nginx-full_1.24.0-2ubuntu7.19_all.deb</a>              28-Oct-2026 12:15               18860
+<a href="nginx-light_1.24.0-2ubuntu7.19_all.deb">nginx-light_1.24.0-2ubuntu7.19_all.deb</a>             28-Oct-2026 12:15               18570
+root@ubuntu-server:/tmp# curl -sI http://localhost/repo/Packages.gz | head -1
+HTTP/1.1 200 OK
+root@ubuntu-server:/tmp# curl -sI http://localhost/repo/Release | head -1
+HTTP/1.1 200 OK
+root@ubuntu-server:/tmp# curl -sI http://localhost/repo/nginx_1.24.0-2ubuntu7.19_amd64.deb | head -1
+HTTP/1.1 200 OK
+root@ubuntu-server:/tmp#
+
+
+```
+apt показывает пакеты из репозитория
 
 ```bash
+root@ubuntu-server:/tmp# apt-cache policy nginx
+nginx:
+  Установлен: 1.24.0-2ubuntu7.19
+  Кандидат:   1.24.0-2ubuntu7.19
+  Таблица версий:
+ *** 1.24.0-2ubuntu7.19 500
+        500 http://ru.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages
+        500 http://security.ubuntu.com/ubuntu noble-security/main amd64 Packages
+        100 /var/lib/dpkg/status
+     1.24.0-2ubuntu7 500
+        500 http://ru.archive.ubuntu.com/ubuntu noble/main amd64 Packages
+root@ubuntu-server:/tmp# apt-cache madison nginx
+     nginx | 1.24.0-2ubuntu7.19 | http://ru.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages
+     nginx | 1.24.0-2ubuntu7.19 | http://security.ubuntu.com/ubuntu noble-security/main amd64 Packages
+     nginx | 1.24.0-2ubuntu7 | http://ru.archive.ubuntu.com/ubuntu noble/main amd64 Packages
+     nginx | 1.24.0-2ubuntu7 | http://ru.archive.ubuntu.com/ubuntu noble/main Sources
+     nginx | 1.24.0-2ubuntu7.19 | http://ru.archive.ubuntu.com/ubuntu noble-updates/main Sources
+     nginx | 1.24.0-2ubuntu7.19 | http://security.ubuntu.com/ubuntu noble-security/main Sources
+root@ubuntu-server:/tmp#
+
+
+```
+
+В пакете есть модуль ngx_brotli
+```bash
+root@ubuntu-server:/tmp# dpkg-deb -x /var/www/html/repo/nginx_1.24.0-2ubuntu7.19_amd64.deb /tmp/nginx-final
+root@ubuntu-server:/tmp# /tmp/nginx-final/usr/sbin/nginx -V 2>&1 | tr ' ' '\n' | grep -i brotli
+--add-module=/root/ngx_brotli
+root@ubuntu-server:/tmp# ls -l
+total 520
+-rw-r--r-- 1 root root 524926 окт 26 16:52 nginx_1.24.0-2ubuntu7.19_amd64.deb
+drwxr-xr-x 3 root root   4096 окт 24 14:34 nginx-final
+
 
 
 ```
